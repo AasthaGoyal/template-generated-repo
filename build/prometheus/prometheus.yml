@@ -1,0 +1,11 @@
+attrNameSnakeCase: true
+lowercaseOutputName: true
+lowercaseOutputLabelNames: true
+#whitelistObjectNames:
+#  - "org.apache.synapse:Name=*,Type=*"
+blacklistObjectNames:
+  - "solr/registry-indexing:*"
+  - "Catalina:*"
+  - "JMImplementation:*"
+  - "org.wso2.andes:*"  
+  - "org.wso2.carbon:*"

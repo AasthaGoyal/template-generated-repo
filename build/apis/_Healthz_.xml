@@ -1,0 +1,9 @@
+<api xmlns="http://ws.apache.org/ns/synapse" name="_Healthz_" context="/healthz">
+    <resource methods="GET" url-mapping="/*" >
+        <inSequence>
+           <respond/>
+        </inSequence>
+        <outSequence>
+        </outSequence>
+    </resource>
+</api>

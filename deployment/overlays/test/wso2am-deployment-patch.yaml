@@ -1,0 +1,12 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    sh.ipaas.version: 1.0.0
+  labels:
+    sh.ipaas.gov.team: iw
+    sh.ipaas.gov.type: apps
+    sh.ipaas.gov.subtype: wso2am
+  name: wso2am-general
+spec:
+  replicas: 1   

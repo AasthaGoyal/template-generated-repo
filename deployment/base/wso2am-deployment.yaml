@@ -1,0 +1,122 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    sh.ipaas.version: 1.0.0
+  labels:
+    sh.ipaas.gov.team: iw
+    sh.ipaas.gov.type: apps
+    sh.ipaas.gov.subtype: wso2am
+  name: wso2am-general
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      sh.ipaas.k8s.pod: wso2am-general
+  strategy: {}
+  template:
+    metadata:
+      annotations:
+        sh.ipaas.version: 1.0.0
+        prometheus.io/scrape: 'true'
+        prometheus.io/port:   '8080'
+      labels:
+        sh.ipaas.k8s.pod: wso2am-general
+        sh.ipaas.k8s.pod.metrics: monitoring-include
+    spec:
+      imagePullSecrets:
+      - name: regcred-wso2-am
+      containers:
+      - image: registry.ingress.staging.caas.com.prt.cloudcreator.co.nz/cust2/customertwo-wso2am:latest
+        imagePullPolicy: IfNotPresent
+        name: wso2am-general
+        env:
+        - name: KEYSTORE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: wso2am-general-credentials
+              key: keystorepwd 
+        - name: KEY_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: wso2am-general-credentials
+              key: keypwd
+        - name: ADMINUSER
+          valueFrom:
+            secretKeyRef:
+              name: wso2am-general-credentials
+              key: adminuser
+        - name: ADMINPWD
+          valueFrom:
+            secretKeyRef:
+              name: wso2am-general-credentials
+              key: adminpwd
+        - name: TLS_KEYSTORE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: wso2am-general-credentials
+              key: tlskeystorepwd
+        - name: TLS_KEY_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: wso2am-general-credentials
+              key: tlskeypwd  
+        - name: APIM_DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: wso2am-general-db-credentials
+              key: apimdbuser
+        - name: APIM_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: wso2am-general-db-credentials
+              key: apimdbpwd
+        - name: SHARED_DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: wso2am-general-db-credentials
+              key: shareddbuser
+        - name: SHARED_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: wso2am-general-db-credentials
+              key: shareddbpwd                           
+        ports:
+        - containerPort: 8280
+        - containerPort: 8243
+        - containerPort: 9443
+        - containerPort: 8080
+          name: metrics
+          protocol: TCP
+        volumeMounts:
+        - name: am-synapse-configs-storage
+          mountPath: /home/wso2carbon/wso2am-3.1.0/repository/deployment/server/synapse-configs
+        - name: am-executionplans-storage
+          mountPath: /home/wso2carbon/wso2am-3.1.0/repository/deployment/server/executionplans   
+        - name: wso2am-conf
+          mountPath: /home/wso2carbon/wso2am-3.1.0/repository/conf/deployment.toml
+          subPath: deployment.toml   
+        - name: wso2am-conf
+          mountPath: /home/wso2carbon/wso2am-3.1.0/repository/resources/security/client-truststore.jks
+          subPath: client-truststore.jks
+        - name: wso2am-conf
+          mountPath: /home/wso2carbon/wso2am-3.1.0/repository/resources/security/primary.jks    
+          subPath: primary.jks                  
+        resources:
+          limits:
+            cpu: "4000m"
+            memory: "8Gi"
+          requests:
+            cpu: "2000m"
+            memory: "4Gi"
+      restartPolicy: Always
+      volumes:
+      - name: am-synapse-configs-storage
+        persistentVolumeClaim:
+          claimName: am-synapse-configs-storage-pv-claim
+      - name: am-executionplans-storage
+        persistentVolumeClaim:
+          claimName: am-executionplans-storage-pv-claim 
+      - name: wso2am-conf
+        configMap:
+          name: wso2am-configmap    

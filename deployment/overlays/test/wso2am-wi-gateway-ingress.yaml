@@ -1,0 +1,37 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: wso2am-wi-gateway-gw
+  namespace: wso2
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    hosts:
+    - amgw.wi-test.poccust1.ipaas.cloudcreator.co.nz
+    tls:
+        mode: SIMPLE
+        credentialName: wso2am-wi-secret-gw
+        minProtocolVersion: TLSV1_2
+        maxProtocolVersion: TLSV1_3
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: wso2am-wi-virtualservice-gw
+  namespace: wso2
+spec:
+  hosts:
+  - amgw.wi-test.poccust1.ipaas.cloudcreator.co.nz
+  gateways:
+  - wso2am-wi-gateway-gw
+  http:
+  - route:
+    - destination:
+        host: wso2am-general-gw
+        port:
+          number: 8280

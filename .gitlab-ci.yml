@@ -1,0 +1,138 @@
+workflow:
+  rules:
+    - if: $CI_COMMIT_TAG
+stages:
+  - build
+  - vulnerability-scanning
+  - test-deploy
+  - test
+  - prod-deploy
+
+variables:
+  SECURE_ANALYZERS_PREFIX: "registry.gitlab.com/gitlab-org/security-products/analyzers"
+  SECRETS_ANALYZER_VERSION: "3"
+  CS_MAJOR_VERSION: 2  
+
+build:
+    stage: build
+    only:
+     - /^V-.*$/i
+    image:
+      name: gcr.io/kaniko-project/executor:debug
+      entrypoint: [""]
+    script:
+      - echo " ********** Build stage ***********"
+      - mkdir -p /kaniko/.docker
+      - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
+      - /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile --destination $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG:$CI_COMMIT_SHA
+      - echo " ********** Build is completed ***********"
+
+container-scanning:
+  stage: vulnerability-scanning
+  only:
+    - /^V-.*$/i
+  image: $SECURE_ANALYZERS_PREFIX/klar:$CS_MAJOR_VERSION
+  variables:
+    CLAIR_DB_IMAGE_TAG: "latest"
+    CLAIR_DB_IMAGE: "$SECURE_ANALYZERS_PREFIX/clair-vulnerabilities-db:$CLAIR_DB_IMAGE_TAG"
+    GIT_STRATEGY: fetch
+  allow_failure: false
+  services:
+    - name: $CLAIR_DB_IMAGE
+      alias: clair-vulnerabilities-db
+  script:
+    - apk add jq
+    - /analyzer run
+    - >
+      if [ `jq '.vulnerabilities | length' gl-container-scanning-report.json` -eq 0 ]; then
+        echo " No vulnerabilitiees found."
+      else
+        echo "Vulnerabilitiees found"
+        exit 1
+      fi
+  artifacts:
+    reports:
+      container_scanning: gl-container-scanning-report.json
+
+
+secret_detection:
+  stage: vulnerability-scanning
+  image: "$SECURE_ANALYZERS_PREFIX/secrets:$SECRETS_ANALYZER_VERSION"
+  variables:
+    SECURE_LOG_LEVEL: "debug"
+  script:
+    - /analyzer run 
+  artifacts:
+    reports:
+      container_scanning: gl-secret-detection-report.json
+     
+
+test-deploy: 
+    stage: test-deploy
+    only:
+     - /^V-.*$/i
+    image: dtzar/helm-kubectl
+    environment:
+      name: test 
+      kubernetes:
+        namespace: wso2
+    before_script:
+      - curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"  | bash  
+      - export PATH="$(pwd):$PATH" 
+      
+    script:
+    - echo " ********** Deploy stage ***********"
+    - echo " KUBE_URL = "  $KUBE_URL
+    - echo " KUBECONFIG = "  $KUBECONFIG
+    - echo " KUBE_NAMESPACE = " $KUBE_NAMESPACE
+    - echo " CI_REGISTRY = " $CI_REGISTRY
+    - echo " CI_DEPLOY_USER = " $CI_DEPLOY_USER
+    - kubectl version
+    - kustomize version
+    - kubectl create secret docker-registry regcred-wso2-am --docker-server=$CI_REGISTRY --docker-username=$CI_DEPLOY_USER --docker-password=$CI_DEPLOY_PASSWORD --dry-run=client -o yaml | kubectl apply -f -
+    - cd deployment/overlays/test
+    - kustomize edit set image registry.ingress.staging.caas.com.prt.cloudcreator.co.nz/cust2/customertwo-wso2am=$CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG:$CI_COMMIT_SHA
+    - cd ../../
+    - kustomize build overlays/test | kubectl apply -f -
+    - echo " ********** Deployment is completed ***********"       
+    
+test: 
+    stage: test
+    only:
+     - /^V-.*$/i
+    script:
+    - echo " ********** Testing stage ***********"
+    - echo " ********** TODO - Check whether services are ready for testing ***********"
+    - echo " ********** TODO - Run the test suite ***********"
+    - echo " ********** Testing stage is completed ***********"
+    
+prod-deploy: 
+    stage: prod-deploy
+    only:
+     - /^V-.*$/i
+    image: dtzar/helm-kubectl
+    environment:
+      name: prod 
+      kubernetes:
+        namespace: wso2
+    before_script:
+      - curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"  | bash  
+      - export PATH="$(pwd):$PATH" 
+
+    script:
+    - echo " ********** Deploy stage ***********"
+    - echo " KUBE_URL = "  $KUBE_URL
+    - echo " KUBE_TOKEN = "  $KUBE_TOKEN
+    - echo " KUBECONFIG = "  $KUBECONFIG
+    - echo " KUBE_NAMESPACE = " $KUBE_NAMESPACE
+    - echo " CI_REGISTRY = " $CI_REGISTRY
+    - echo " CI_DEPLOY_USER = " $CI_DEPLOY_USER
+    - echo " CI_DEPLOY_PASSWORD = " $CI_DEPLOY_PASSWORD
+    - kubectl version
+    - kustomize version
+    - kubectl create secret docker-registry regcred-wso2-am --docker-server=$CI_REGISTRY --docker-username=$CI_DEPLOY_USER --docker-password=$CI_DEPLOY_PASSWORD --dry-run=client -o yaml | kubectl apply -f -
+    - cd deployment/overlays/prod
+    - kustomize edit set image registry.ingress.staging.caas.com.prt.cloudcreator.co.nz/cust2/customertwo-wso2am=$CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG:$CI_COMMIT_SHA
+    - cd ../../
+    - kustomize build overlays/prod | kubectl apply -f -
+    - echo " ********** Deployment is completed ***********"     

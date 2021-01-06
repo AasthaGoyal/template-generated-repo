@@ -1,0 +1,29 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- ../../base
+- wso2am-gateway-ingress.yaml
+- wso2am-publisher-ingress.yaml
+- wso2am-ch-gateway-certificate.yaml
+- wso2am-ch-gateway-ingress.yaml
+- wso2am-destinationrule.yaml
+- wso2am-gateway-certificate.yaml
+- wso2am-publisher-certificate.yaml
+- wso2am-wi-gateway-certificate.yaml
+- wso2am-wi-gateway-ingress.yaml
+
+patchesStrategicMerge:
+- wso2am-deployment-patch.yaml
+
+configMapGenerator:
+- name: wso2am-configmap
+  files:
+  - deployment.toml
+  - primary.jks
+  - client-truststore.jks
+
+generatorOptions:
+ disableNameSuffixHash: true
+
+  

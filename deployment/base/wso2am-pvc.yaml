@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  annotations:
+    sh.ipaas.version: 1.0.0
+  labels:
+    sh.ipaas.gov.team: iw
+    sh.ipaas.gov.type: apps
+    sh.ipaas.gov.subtype: wso2am
+  name: am-synapse-configs-storage-pv-claim
+spec:
+  storageClassName: netapp-perf
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  annotations:
+    sh.ipaas.version: 1.0.0
+  labels:
+    sh.ipaas.gov.team: iw
+    sh.ipaas.gov.type: apps
+    sh.ipaas.gov.subtype: wso2am
+  name: am-executionplans-storage-pv-claim
+spec:
+  storageClassName: netapp-perf
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
